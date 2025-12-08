@@ -66,135 +66,218 @@ function Landing() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <section className="rounded-2xl bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-wide text-brand-600">
-              Community-powered storage
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Find storage near you
-            </h1>
-            <p className="text-slate-600">
-              Nearby garages, closets, and spare rooms—cheaper than traditional
-              storage.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <input
-              placeholder="ZIP"
-              value={filters.zipCode || ""}
-              onChange={(e) => handleFilterChange("zipCode", e.target.value)}
-              className="w-24 rounded-lg border border-slate-200 px-3 py-2"
-            />
-            <select
-              value={filters.size || ""}
-              onChange={(e) =>
-                handleFilterChange("size", e.target.value as StorageSize)
-              }
-              className="rounded-lg border border-slate-200 px-3 py-2"
-            >
-              <option value="">Any size</option>
-              <option value="S">S</option>
-              <option value="M">M</option>
-              <option value="L">L</option>
-            </select>
-            <input
-              type="number"
-              placeholder="Min $"
-              value={filters.priceMin ?? ""}
-              onChange={(e) =>
-                setFilters((f) => ({
-                  ...f,
-                  priceMin: e.target.value ? Number(e.target.value) : undefined,
-                }))
-              }
-              className="w-24 rounded-lg border border-slate-200 px-3 py-2"
-            />
-            <input
-              type="number"
-              placeholder="Max $"
-              value={filters.priceMax ?? ""}
-              onChange={(e) =>
-                setFilters((f) => ({
-                  ...f,
-                  priceMax: e.target.value ? Number(e.target.value) : undefined,
-                }))
-              }
-              className="w-24 rounded-lg border border-slate-200 px-3 py-2"
-            />
-            <button
-              className="rounded-lg bg-brand-600 px-4 py-2 text-white shadow-sm"
-              onClick={() => refetch()}
-            >
-              Search
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-900">Nearby spaces</h2>
-          <p className="text-sm text-slate-500">
-            Sorted by proximity and rating
-          </p>
-        </div>
-        {isLoading ? (
-          <p className="text-slate-600">Loading listings…</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {listings.map((listing) => (
-              <div
-                key={listing._id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-xs uppercase text-brand-600">
-                    {listing.size} • {listing.zipCode}
-                  </p>
-                  <span className="text-xs text-amber-600">
-                    ★ {listing.rating ?? "4.7"}
-                  </span>
-                </div>
-                <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                  {listing.title}
-                </h3>
-                <p className="text-sm text-slate-600 line-clamp-2">
-                  {listing.description}
-                </p>
-                <p className="mt-3 text-sm text-slate-500">
-                  {listing.addressSummary}
-                </p>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-semibold text-slate-900">
-                    ${listing.pricePerMonth}/mo
-                  </span>
+    <main className="bg-slate-50">
+      <div className="mx-auto max-w-6xl px-4 pb-12 pt-4">
+        <section className="relative overflow-hidden rounded-3xl bg-slate-900 text-white shadow-xl">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80')",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/70 to-slate-900/30" />
+          <div className="relative z-10 grid gap-6 px-6 py-12 md:grid-cols-2 md:px-10 lg:px-14">
+            <div className="flex flex-col gap-4">
+              <span className="inline-flex w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                Community-powered storage
+              </span>
+              <h1 className="text-3xl font-bold leading-tight md:text-4xl">
+                Parking & storage, made friendly.
+              </h1>
+              <p className="text-lg text-slate-100/90">
+                Save on nearby garages, closets, and spare rooms. Book in
+                minutes. Cancel any month.
+              </p>
+              <div className="flex flex-col gap-3 rounded-2xl bg-white/10 p-4 backdrop-blur">
+                <label className="text-sm font-medium text-white/90">
+                  Find storage near you
+                </label>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    placeholder="Enter ZIP"
+                    value={filters.zipCode || ""}
+                    onChange={(e) => handleFilterChange("zipCode", e.target.value)}
+                    className="w-full rounded-xl border border-white/30 bg-white/90 px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-white focus:ring-2 focus:ring-white/60"
+                  />
                   <button
-                    className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-medium text-brand-600"
-                    onClick={() => setSelected(listing)}
+                    className="w-full rounded-xl bg-brand-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-brand-500 sm:w-auto"
+                    onClick={() => refetch()}
                   >
-                    View
+                    Search
                   </button>
                 </div>
+                <div className="flex flex-wrap gap-3 text-xs text-white/80">
+                  <span className="rounded-full bg-white/15 px-3 py-1">
+                    Save up to 50%
+                  </span>
+                  <span className="rounded-full bg-white/15 px-3 py-1">
+                    No long-term lock-in
+                  </span>
+                  <span className="rounded-full bg-white/15 px-3 py-1">
+                    Verified hosts
+                  </span>
+                </div>
               </div>
-            ))}
-            {!listings.length && (
-              <p className="text-slate-600">
-                No listings yet—add one from the host dashboard.
-              </p>
-            )}
+            </div>
+            <div className="rounded-2xl bg-white/10 p-5 backdrop-blur">
+              <h3 className="text-lg font-semibold text-white">
+                How it works
+              </h3>
+              <div className="mt-4 space-y-4 text-white/90">
+                <div className="flex gap-3">
+                  <div className="mt-1 h-8 w-8 rounded-full bg-white/20 text-center text-sm font-semibold leading-8">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-semibold">Find a great spot</p>
+                    <p className="text-sm text-white/80">
+                      Search where you need storage—on your schedule.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="mt-1 h-8 w-8 rounded-full bg-white/20 text-center text-sm font-semibold leading-8">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-semibold">Book in minutes</p>
+                    <p className="text-sm text-white/80">
+                      Compare options, reserve instantly, chat with hosts.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="mt-1 h-8 w-8 rounded-full bg-white/20 text-center text-sm font-semibold leading-8">
+                    3
+                  </div>
+                  <div>
+                    <p className="font-semibold">Enjoy savings</p>
+                    <p className="text-sm text-white/80">
+                      Cheaper than traditional storage; cancel any month.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-slate-100"
+                  onClick={() => setSelected(listings[0] || null)}
+                >
+                  Explore nearby spaces
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </section>
+        </section>
 
-      {selected && (
-        <ListingDetailModal
-          listing={selected}
-          onClose={() => setSelected(null)}
-        />
-      )}
+        <section className="mt-10">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Nearby spaces
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <select
+                value={filters.size || ""}
+                onChange={(e) =>
+                  handleFilterChange("size", e.target.value as StorageSize)
+                }
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+              >
+                <option value="">Any size</option>
+                <option value="S">S • Small</option>
+                <option value="M">M • Medium</option>
+                <option value="L">L • Large</option>
+              </select>
+              <input
+                type="number"
+                placeholder="Min $"
+                value={filters.priceMin ?? ""}
+                onChange={(e) =>
+                  setFilters((f) => ({
+                    ...f,
+                    priceMin: e.target.value ? Number(e.target.value) : undefined,
+                  }))
+                }
+                className="w-24 rounded-lg border border-slate-200 px-3 py-2"
+              />
+              <input
+                type="number"
+                placeholder="Max $"
+                value={filters.priceMax ?? ""}
+                onChange={(e) =>
+                  setFilters((f) => ({
+                    ...f,
+                    priceMax: e.target.value ? Number(e.target.value) : undefined,
+                  }))
+                }
+                className="w-24 rounded-lg border border-slate-200 px-3 py-2"
+              />
+            </div>
+          </div>
+          {isLoading ? (
+            <p className="text-slate-600">Loading listings…</p>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {listings.map((listing) => (
+                <div
+                  key={listing._id}
+                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                >
+                  {listing.images?.length ? (
+                    <div
+                      className="h-40 w-full bg-cover bg-center"
+                      style={{ backgroundImage: `url(${listing.images[0]})` }}
+                    />
+                  ) : (
+                    <div className="h-40 w-full bg-gradient-to-br from-slate-200 to-slate-100" />
+                  )}
+                  <div className="p-4">
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span className="uppercase tracking-wide text-brand-600">
+                        {listing.size} • {listing.zipCode}
+                      </span>
+                      <span className="text-amber-600">
+                        ★ {listing.rating ?? "4.7"}
+                      </span>
+                    </div>
+                    <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                      {listing.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 line-clamp-2">
+                      {listing.description}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {listing.addressSummary}
+                    </p>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-lg font-semibold text-slate-900">
+                        ${listing.pricePerMonth}/mo
+                      </span>
+                      <button
+                        className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-medium text-brand-600 transition hover:bg-brand-50"
+                        onClick={() => setSelected(listing)}
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!listings.length && (
+                <p className="text-slate-600">
+                  No listings yet—add one from the host dashboard.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+
+        {selected && (
+          <ListingDetailModal
+            listing={selected}
+            onClose={() => setSelected(null)}
+          />
+        )}
+      </div>
     </main>
   );
 }
