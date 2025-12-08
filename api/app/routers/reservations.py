@@ -47,8 +47,9 @@ async def create_reservation(
         "_id": reservation_id,
         "listingId": payload.listingId,
         "renterId": current_user["_id"],
-        "startDate": payload.startDate,
-        "endDate": payload.endDate,
+        # Store as datetimes to satisfy MongoDB encoding
+        "startDate": start_dt,
+        "endDate": end_dt,
         "status": ReservationStatus.pending,
         "basePrice": base,
         "serviceFee": service_fee,
