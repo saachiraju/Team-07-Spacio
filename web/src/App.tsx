@@ -668,6 +668,12 @@ function ReservationCard({
     onSuccess: () => refetch(),
   });
   const [message, setMessage] = useState("");
+  const queryClient = useQueryClient();
+  const cancel = useMutation({
+    mutationFn: () => reservationApi.deleteReservation(reservation._id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["reservations"] }),
+  });
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -700,6 +706,15 @@ function ReservationCard({
               Decline
             </button>
           </div>
+        )}
+        {!asHost && (
+          <button
+            className="text-sm text-red-600 underline"
+            onClick={() => cancel.mutate()}
+            disabled={cancel.isPending}
+          >
+            {cancel.isPending ? "Cancelling..." : "Cancel reservation"}
+          </button>
         )}
         <button
           className="text-sm text-brand-600 underline"

@@ -125,3 +125,24 @@ async def list_my_reservations(
     reservations = await cursor.to_list(length=200)
     return [ReservationPublic(**r) for r in reservations]
 
+
+@router.delete("/{reservation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_reservation(
+    reservation_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    reservation = await db.reservations.find_one({"_id": reservation_id})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    listing = await db.listings.find_one({"_id": reservation["listingId"]})
+    is_host_owner = listing and listing.get("hostId") == current_user["_id"]
+    is_renter = reservation.get("renterId") == current_user["_id"]
+
+    if not (is_host_owner or is_renter):
+        raise HTTPException(status_code=403, detail="Not authorized for this reservation")
+
+    await db.reservations.delete_one({"_id": reservation_id})
+    return None
+

@@ -25,3 +25,7 @@ export async function declineReservation(id: string) {
   return data;
 }
 
+export async function deleteReservation(id: string) {
+  await api.delete(`/reservations/${id}`);
+}
+
