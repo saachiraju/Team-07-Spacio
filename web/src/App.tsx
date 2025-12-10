@@ -844,6 +844,11 @@ function ReservationCard({
 }
 
 function HostDashboard() {
+  const { data: myListings = [], isLoading: loadingMy } = useQuery({
+    queryKey: ["my-listings"],
+    queryFn: listingApi.fetchMyListings,
+  });
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-semibold text-slate-900">Host workspace</h1>
@@ -858,6 +863,64 @@ function HostDashboard() {
           </p>
           <div className="mt-3">
             <ReservationList asHost />
+          </div>
+        </div>
+        <div className="lg:col-span-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  My listings
+                </h3>
+                <p className="text-sm text-slate-600">
+                  All listings you host (click View to inspect).
+                </p>
+              </div>
+              <span className="text-sm text-slate-500">
+                {myListings.length} total
+              </span>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {loadingMy ? (
+                <p className="text-slate-600">Loading…</p>
+              ) : myListings.length ? (
+                myListings.map((listing) => (
+                  <div
+                    key={listing._id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span className="uppercase tracking-wide text-brand-600">
+                        {listing.size} • {listing.zipCode}
+                      </span>
+                      <span className="text-amber-600">
+                        ★ {listing.rating ?? "4.7"}
+                      </span>
+                    </div>
+                    <h4 className="mt-1 text-base font-semibold text-slate-900">
+                      {listing.title}
+                    </h4>
+                    <p className="text-sm text-slate-600 line-clamp-2">
+                      {listing.description}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      ${listing.pricePerMonth}/mo •{" "}
+                      {listing.availability ? "Available" : "Unavailable"}
+                    </p>
+                    <div className="mt-3 flex justify-between text-sm text-slate-600">
+                      <span>{listing.addressSummary}</span>
+                      <span className="text-slate-500">
+                        {new Date(listing.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-600">
+                  You have no listings yet. Create one to get started.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

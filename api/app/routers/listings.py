@@ -78,3 +78,15 @@ async def get_listing(
         raise HTTPException(status_code=404, detail="Listing not found")
     return ListingPublic(**listing)
 
+
+@router.get("/mine", response_model=List[ListingPublic])
+async def list_my_listings(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    if not current_user.get("isHost"):
+        raise HTTPException(status_code=403, detail="Only hosts can view their listings")
+    cursor = db.listings.find({"hostId": current_user["_id"]})
+    listings = await cursor.to_list(length=100)
+    return [ListingPublic(**l) for l in listings]
+
