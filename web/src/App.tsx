@@ -873,7 +873,7 @@ function HostDashboard() {
                   My listings
                 </h3>
                 <p className="text-sm text-slate-600">
-                  All listings you host (click View to inspect).
+                  All listings you host.
                 </p>
               </div>
               <span className="text-sm text-slate-500">

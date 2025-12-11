@@ -16,11 +16,6 @@ export async function fetchListing(id: string) {
   return data;
 }
 
-export async function fetchMyListings() {
-  const { data } = await api.get<Listing[]>("/listings/mine");
-  return data;
-}
-
 export async function createListing(payload: {
   title: string;
   description: string;
@@ -31,6 +26,11 @@ export async function createListing(payload: {
   images: string[];
 }) {
   const { data } = await api.post<Listing>("/listings", payload);
+  return data;
+}
+
+export async function fetchMyListings() {
+  const { data } = await api.get<Listing[]>("/listings/mine");
   return data;
 }
 

@@ -5,7 +5,6 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.config import settings
 from app.deps.auth import get_current_user
 from app.models.schemas import ListingCreate, ListingPublic, StorageSize
 from app.db import get_db
@@ -80,13 +79,13 @@ async def get_listing(
 
 
 @router.get("/mine", response_model=List[ListingPublic])
-async def list_my_listings(
+async def my_listings(
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     if not current_user.get("isHost"):
         raise HTTPException(status_code=403, detail="Only hosts can view their listings")
     cursor = db.listings.find({"hostId": current_user["_id"]})
-    listings = await cursor.to_list(length=100)
-    return [ListingPublic(**l) for l in listings]
+    items = await cursor.to_list(length=200)
+    return [ListingPublic(**l) for l in items]
 
