@@ -68,16 +68,6 @@ async def list_listings(
     return [ListingPublic(**l) for l in listings]
 
 
-@router.get("/{listing_id}", response_model=ListingPublic)
-async def get_listing(
-    listing_id: str, db: AsyncIOMotorDatabase = Depends(get_db)
-):
-    listing = await db.listings.find_one({"_id": listing_id})
-    if not listing:
-        raise HTTPException(status_code=404, detail="Listing not found")
-    return ListingPublic(**listing)
-
-
 @router.get("/mine", response_model=List[ListingPublic])
 async def my_listings(
     db: AsyncIOMotorDatabase = Depends(get_db),
@@ -88,4 +78,14 @@ async def my_listings(
     cursor = db.listings.find({"hostId": current_user["_id"]})
     items = await cursor.to_list(length=200)
     return [ListingPublic(**l) for l in items]
+
+
+@router.get("/{listing_id}", response_model=ListingPublic)
+async def get_listing(
+    listing_id: str, db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    listing = await db.listings.find_one({"_id": listing_id})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    return ListingPublic(**listing)
 

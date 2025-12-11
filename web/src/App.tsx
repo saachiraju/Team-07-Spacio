@@ -590,6 +590,7 @@ function CreateListingForm() {
     mutationFn: (payload: any) => listingApi.createListing(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["listings"] });
+      queryClient.invalidateQueries({ queryKey: ["my-listings"] });
       alert("Listing created");
       setForm({
         title: "",
