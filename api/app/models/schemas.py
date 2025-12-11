@@ -72,6 +72,18 @@ class ListingPublic(ListingBase):
         populate_by_name = True
 
 
+class ListingUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    size: Optional[StorageSize] = None
+    pricePerMonth: Optional[float] = None
+    addressSummary: Optional[str] = None
+    zipCode: Optional[str] = None
+    images: Optional[List[str]] = None
+    availability: Optional[bool] = None
+    rating: Optional[float] = None
+
+
 class ReservationCreate(BaseModel):
     listingId: str
     startDate: date

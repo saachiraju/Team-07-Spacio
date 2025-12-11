@@ -849,6 +849,27 @@ function HostDashboard() {
     queryKey: ["my-listings"],
     queryFn: listingApi.fetchMyListings,
   });
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, any>>({});
+
+  const updateListing = useMutation({
+    mutationFn: (vars: { id: string; payload: any }) =>
+      listingApi.updateListing(vars.id, vars.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["listings"] });
+      setEditingId(null);
+    },
+  });
+
+  const deleteListing = useMutation({
+    mutationFn: (id: string) => listingApi.deleteListing(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["listings"] });
+    },
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -914,6 +935,84 @@ function HostDashboard() {
                         {new Date(listing.createdAt).toLocaleDateString()}
                       </span>
                     </div>
+                    {editingId === listing._id ? (
+                      <div className="mt-3 space-y-2">
+                        <input
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                          defaultValue={listing.title}
+                          onChange={(e) =>
+                            setEditForm((p) => ({ ...p, title: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                          defaultValue={listing.pricePerMonth}
+                          type="number"
+                          onChange={(e) =>
+                            setEditForm((p) => ({
+                              ...p,
+                              pricePerMonth: Number(e.target.value),
+                            }))
+                          }
+                        />
+                        <select
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                          defaultValue={listing.size}
+                          onChange={(e) =>
+                            setEditForm((p) => ({ ...p, size: e.target.value }))
+                          }
+                        >
+                          <option value="S">S</option>
+                          <option value="M">M</option>
+                          <option value="L">L</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                            onClick={() =>
+                              updateListing.mutate({
+                                id: listing._id,
+                                payload: editForm,
+                              })
+                            }
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditForm({});
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {updateListing.error && (
+                          <p className="text-sm text-red-600">
+                            Error saving changes
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700"
+                          onClick={() => {
+                            setEditingId(listing._id);
+                            setEditForm({});
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600"
+                          onClick={() => deleteListing.mutate(listing._id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.deps.auth import get_current_user
-from app.models.schemas import ListingCreate, ListingPublic, StorageSize
+from app.models.schemas import ListingCreate, ListingPublic, ListingUpdate, StorageSize
 from app.db import get_db
 
 router = APIRouter()
@@ -88,4 +88,41 @@ async def get_listing(
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     return ListingPublic(**listing)
+
+
+@router.patch("/{listing_id}", response_model=ListingPublic)
+async def update_listing(
+    listing_id: str,
+    payload: ListingUpdate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    listing = await db.listings.find_one({"_id": listing_id})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.get("hostId") != current_user["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items()}
+    if not updates:
+        return ListingPublic(**listing)
+
+    await db.listings.update_one({"_id": listing_id}, {"$set": updates})
+    listing.update(updates)
+    return ListingPublic(**listing)
+
+
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing(
+    listing_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    listing = await db.listings.find_one({"_id": listing_id})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.get("hostId") != current_user["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    await db.listings.delete_one({"_id": listing_id})
+    return None
 
