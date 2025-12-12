@@ -6,6 +6,7 @@ export type Listing = {
   title: string;
   description: string;
   size: StorageSize;
+  sizeSqft?: number;
   pricePerMonth: number;
   addressSummary: string;
   zipCode: string;

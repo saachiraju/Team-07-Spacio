@@ -10,6 +10,7 @@ import { useAuth } from "./hooks/useAuth";
 import * as listingApi from "./api/listings";
 import * as reservationApi from "./api/reservations";
 import * as messageApi from "./api/messages";
+import * as pricingApi from "./api/pricing";
 
 const sizes: StorageSize[] = ["S", "M", "L"];
 
@@ -233,7 +234,8 @@ function Landing() {
                   <div className="p-4">
                     <div className="flex items-center justify-between text-xs text-slate-500">
                       <span className="uppercase tracking-wide text-brand-600">
-                        {listing.size} • {listing.zipCode}
+                        {listing.sizeSqft ? `${listing.sizeSqft} sqft` : listing.size} •{" "}
+                        {listing.zipCode}
                       </span>
                       <span className="text-amber-600">
                         ★ {listing.rating ?? "4.7"}
@@ -341,7 +343,7 @@ function ListingDetailModal({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase text-brand-600">
-              {listing.size} • {listing.zipCode}
+              {listing.sizeSqft ? `${listing.sizeSqft} sqft` : listing.size} • {listing.zipCode}
             </p>
             <h3 className="text-2xl font-semibold text-slate-900">
               {listing.title}
@@ -581,10 +583,44 @@ function CreateListingForm() {
     title: "",
     description: "",
     size: "M" as StorageSize,
+    sizeSqft: 100,
     pricePerMonth: 100,
     addressSummary: "",
     zipCode: "",
-    images: "",
+  });
+  const [indoor, setIndoor] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [suggested, setSuggested] = useState<{
+    price: number;
+    min: number;
+    max: number;
+    reason: string;
+  } | null>(null);
+
+  const pricing = useMutation({
+    mutationFn: () =>
+      pricingApi.suggestPrice({
+        size:
+          form.sizeSqft <= 60
+            ? "S"
+            : form.sizeSqft <= 150
+              ? "M"
+              : "L",
+        zipCode: form.zipCode,
+        indoor,
+        title: form.title,
+        description: form.description,
+      }),
+    onSuccess: (res) => {
+      setSuggested({
+        price: res.suggestedPrice,
+        min: res.minPrice,
+        max: res.maxPrice,
+        reason: res.explanation,
+      });
+      setForm((prev) => ({ ...prev, pricePerMonth: res.suggestedPrice }));
+    },
   });
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: (payload: any) => listingApi.createListing(payload),
@@ -599,18 +635,24 @@ function CreateListingForm() {
         pricePerMonth: 100,
         addressSummary: "",
         zipCode: "",
-        images: "",
       });
+      setFile(null);
+      setPreview(null);
     },
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const images = form.images
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    await mutateAsync({ ...form, images, pricePerMonth: Number(form.pricePerMonth) });
+    let images: string[] = [];
+    if (file) {
+    const uploaded = await listingApi.uploadImage(file);
+      images = [uploaded.url];
+    }
+    await mutateAsync({
+      ...form,
+      pricePerMonth: Number(form.pricePerMonth),
+      images,
+    });
   };
 
   return (
@@ -632,28 +674,46 @@ function CreateListingForm() {
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
         <div className="grid gap-3 sm:grid-cols-2">
-          <select
-            value={form.size}
-            onChange={(e) =>
-              setForm({ ...form, size: e.target.value as StorageSize })
-            }
-            className="rounded-lg border border-slate-200 px-3 py-2"
-          >
-            {sizes.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            required
-            placeholder="Price per month"
-            className="rounded-lg border border-slate-200 px-3 py-2"
-            value={form.pricePerMonth}
-            onChange={(e) =>
-              setForm({ ...form, pricePerMonth: Number(e.target.value) })
-            }
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+            Size (sqft)
+            <input
+              type="number"
+              required
+              min={1}
+              placeholder="e.g., 80"
+              className="rounded-lg border border-slate-200 px-3 py-2"
+              value={form.sizeSqft}
+              onChange={(e) =>
+                setForm({ ...form, sizeSqft: Number(e.target.value) })
+              }
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+            Price per month ($)
+            <input
+              type="number"
+              required
+              min={1}
+              placeholder="e.g., 120"
+              className="rounded-lg border border-slate-200 px-3 py-2"
+              value={form.pricePerMonth}
+              onChange={(e) =>
+                setForm({ ...form, pricePerMonth: Number(e.target.value) })
+              }
+            />
+          </label>
         </div>
+        {suggested && (
+          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <span className="text-lg">🤖</span>
+            <div>
+              <div className="font-semibold">
+                AI suggestion: ${suggested.price} (range ${suggested.min} – ${suggested.max})
+              </div>
+              <div className="text-slate-600">{suggested.reason}</div>
+            </div>
+          </div>
+        )}
         <input
           required
           placeholder="ZIP code"
@@ -670,17 +730,75 @@ function CreateListingForm() {
             setForm({ ...form, addressSummary: e.target.value })
           }
         />
-        <input
-          placeholder="Image URLs (comma-separated)"
-          className="rounded-lg border border-slate-200 px-3 py-2"
-          value={form.images}
-          onChange={(e) => setForm({ ...form, images: e.target.value })}
-        />
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300"
+            checked={indoor}
+            onChange={(e) => setIndoor(e.target.checked)}
+          />
+          Indoor storage (adds premium in suggestion)
+        </label>
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4">
+          <p className="text-sm font-semibold text-slate-800">
+            Add photo (JPEG or PNG)
+          </p>
+          <label
+            className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const f = e.dataTransfer.files?.[0];
+              if (f && (f.type === "image/jpeg" || f.type === "image/png")) {
+                setFile(f);
+                setPreview(URL.createObjectURL(f));
+              }
+            }}
+          >
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f && (f.type === "image/jpeg" || f.type === "image/png")) {
+                  setFile(f);
+                  setPreview(URL.createObjectURL(f));
+                }
+              }}
+            />
+            <span>Click or drag an image here</span>
+          </label>
+          {preview && (
+            <div className="mt-3">
+              <img
+                src={preview}
+                alt="Preview"
+                className="h-28 w-full rounded-lg object-cover"
+              />
+            </div>
+          )}
+        </div>
         {error && (
           <p className="text-sm text-red-600">
             {(error as any)?.response?.data?.detail || "Error creating listing"}
           </p>
         )}
+        <div className="flex items-center gap-2 text-sm text-slate-700">
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
+            onClick={() => pricing.mutate()}
+            disabled={pricing.isPending || !form.zipCode || !form.sizeSqft}
+          >
+            {pricing.isPending ? "Getting AI price…" : "AI pricing"}
+          </button>
+          {pricing.isError && (
+            <span className="text-sm text-red-600">
+              Could not fetch AI price. Please try again.
+            </span>
+          )}
+        </div>
         <button
           type="submit"
           disabled={isPending}
@@ -852,6 +970,8 @@ function HostDashboard() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, any>>({});
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editPreview, setEditPreview] = useState<string | null>(null);
 
   const updateListing = useMutation({
     mutationFn: (vars: { id: string; payload: any }) =>
@@ -860,6 +980,8 @@ function HostDashboard() {
       queryClient.invalidateQueries({ queryKey: ["my-listings"] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       setEditingId(null);
+      setEditFile(null);
+      setEditPreview(null);
     },
   });
 
@@ -935,6 +1057,9 @@ function HostDashboard() {
                         {new Date(listing.createdAt).toLocaleDateString()}
                       </span>
                     </div>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {listing.sizeSqft ? `${listing.sizeSqft} sqft` : listing.size}
+                    </p>
                     {editingId === listing._id ? (
                       <div className="mt-3 space-y-2">
                         <input
@@ -966,15 +1091,60 @@ function HostDashboard() {
                           <option value="M">M</option>
                           <option value="L">L</option>
                         </select>
+                        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3">
+                          <p className="text-xs font-semibold text-slate-800">
+                            Replace photo (optional)
+                          </p>
+                          <label
+                            className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const f = e.dataTransfer.files?.[0];
+                              if (f && (f.type === "image/jpeg" || f.type === "image/png")) {
+                                setEditFile(f);
+                                setEditPreview(URL.createObjectURL(f));
+                              }
+                            }}
+                          >
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png"
+                              className="hidden"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f && (f.type === "image/jpeg" || f.type === "image/png")) {
+                                  setEditFile(f);
+                                  setEditPreview(URL.createObjectURL(f));
+                                }
+                              }}
+                            />
+                            <span>Click or drag an image here</span>
+                          </label>
+                          {editPreview || listing.images?.[0] ? (
+                            <div className="mt-2">
+                              <img
+                                src={editPreview || listing.images?.[0]}
+                                alt="Preview"
+                                className="h-20 w-full rounded-lg object-cover"
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                         <div className="flex gap-2">
                           <button
                             className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
-                            onClick={() =>
+                            onClick={async () => {
+                              let payload = { ...editForm };
+                              if (editFile) {
+                                const uploaded = await listingApi.uploadImage(editFile);
+                                payload = { ...payload, images: [uploaded.url] };
+                              }
                               updateListing.mutate({
                                 id: listing._id,
-                                payload: editForm,
-                              })
-                            }
+                                payload,
+                              });
+                            }}
                           >
                             Save
                           </button>
@@ -983,6 +1153,8 @@ function HostDashboard() {
                             onClick={() => {
                               setEditingId(null);
                               setEditForm({});
+                              setEditFile(null);
+                              setEditPreview(null);
                             }}
                           >
                             Cancel

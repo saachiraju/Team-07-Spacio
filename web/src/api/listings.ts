@@ -55,3 +55,12 @@ export async function deleteListing(id: string) {
   await api.delete(`/listings/${id}`);
 }
 
+export async function uploadImage(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post<{ url: string }>("/listings/upload", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+

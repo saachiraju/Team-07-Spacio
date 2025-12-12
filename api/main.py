@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from app.core.config import settings
-from app.routers import auth, listings, reservations, messages
+from app.routers import auth, listings, reservations, messages, pricing
 
 app = FastAPI(
     title="Spacio API",
@@ -28,4 +30,9 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(listings.router, prefix="/listings", tags=["listings"])
 app.include_router(reservations.router, prefix="/reservations", tags=["reservations"])
 app.include_router(messages.router, prefix="/messages", tags=["messages"])
+app.include_router(pricing.router, prefix="/pricing", tags=["pricing"])
+
+# Serve uploaded images
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

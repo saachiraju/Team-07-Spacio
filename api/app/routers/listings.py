@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
+from pathlib import Path
+import shutil
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.deps.auth import get_current_user
@@ -23,10 +25,21 @@ async def create_listing(
 
     listing_id = str(uuid4())
     now = datetime.utcnow()
+    # Derive size bucket from sqft
+    size_bucket = payload.size
+    if payload.sizeSqft:
+        if payload.sizeSqft <= 60:
+            size_bucket = StorageSize.small
+        elif payload.sizeSqft <= 150:
+            size_bucket = StorageSize.medium
+        else:
+            size_bucket = StorageSize.large
+
     doc = {
         "_id": listing_id,
         "hostId": current_user["_id"],
         **payload.model_dump(),
+        "size": size_bucket,
         "rating": payload.rating or 4.7,  # fake rating placeholder
         "createdAt": now,
     }
@@ -104,6 +117,15 @@ async def update_listing(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items()}
+    if "sizeSqft" in updates:
+        sqft = updates["sizeSqft"]
+        if sqft is not None:
+            if sqft <= 60:
+                updates["size"] = StorageSize.small
+            elif sqft <= 150:
+                updates["size"] = StorageSize.medium
+            else:
+                updates["size"] = StorageSize.large
     if not updates:
         return ListingPublic(**listing)
 
@@ -125,4 +147,24 @@ async def delete_listing(
         raise HTTPException(status_code=403, detail="Not authorized")
     await db.listings.delete_one({"_id": listing_id})
     return None
+
+
+@router.post("/upload")
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    if file.content_type not in ("image/jpeg", "image/png"):
+        raise HTTPException(status_code=400, detail="Only JPEG and PNG images are allowed")
+
+    upload_dir = Path(__file__).resolve().parent.parent / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    ext = ".jpg" if file.content_type == "image/jpeg" else ".png"
+    filename = f"{uuid4()}{ext}"
+    dest = upload_dir / filename
+
+    with dest.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"url": f"/uploads/{filename}"}
 

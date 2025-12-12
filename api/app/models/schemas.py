@@ -51,6 +51,7 @@ class ListingBase(BaseModel):
     title: str
     description: str
     size: StorageSize
+    sizeSqft: Optional[float] = None
     pricePerMonth: float
     addressSummary: str
     zipCode: str
@@ -60,7 +61,7 @@ class ListingBase(BaseModel):
 
 
 class ListingCreate(ListingBase):
-    pass
+    sizeSqft: float
 
 
 class ListingPublic(ListingBase):
