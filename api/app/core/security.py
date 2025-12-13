@@ -6,7 +6,6 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Use pbkdf2_sha256 to avoid native bcrypt issues on some systems.
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
@@ -34,4 +33,3 @@ def decode_token(token: str) -> Optional[str]:
         return payload.get("sub")
     except JWTError:
         return None
-

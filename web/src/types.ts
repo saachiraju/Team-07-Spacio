@@ -7,13 +7,18 @@ export type Listing = {
   description: string;
   size: StorageSize;
   sizeSqft?: number;
+  availableSqft?: number;
   pricePerMonth: number;
   addressSummary: string;
   zipCode: string;
   images: string[];
   availability: boolean;
+  availableFrom?: string; 
+  availableTo?: string; 
+  bookingDeadline?: string | null; 
   rating?: number;
   createdAt: string;
+  hostVerified?: boolean;
 };
 
 export type Reservation = {
@@ -22,10 +27,11 @@ export type Reservation = {
   renterId: string;
   startDate: string;
   endDate: string;
+  sqftRequested: number;
   status: "pending_host_confirmation" | "confirmed" | "declined" | "expired";
   totalPrice: number;
   serviceFee: number;
-  deposit: number;
+  insurance: number;
   holdExpiresAt: string;
   createdAt: string;
   basePrice?: number;
@@ -46,5 +52,6 @@ export type User = {
   zipCode: string;
   isHost: boolean;
   phone?: string;
+  verificationStatus?: string;
 };
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List
 from uuid import uuid4
 
@@ -13,13 +13,25 @@ from app.db import get_db
 router = APIRouter()
 
 
-def _calculate_costs(price_per_month: float, start: datetime, end: datetime) -> tuple[float, float, float, float]:
+def _calculate_costs(
+    price_per_month: float, 
+    total_sqft: float,
+    sqft_requested: float,
+    start: datetime, 
+    end: datetime, 
+    add_insurance: bool
+) -> tuple[float, float, float, float]:
     days = (end - start).days or 1
-    base = price_per_month * (days / 30)
+    space_ratio = sqft_requested / total_sqft
+    base = price_per_month * space_ratio * (days / 30)
     service_fee = round(base * settings.service_fee_rate, 2)
-    deposit = settings.refundable_deposit
-    total = round(base + service_fee + deposit, 2)
-    return total, base, service_fee, deposit
+    
+    insurance = 0
+    if add_insurance:
+        insurance = round(sqft_requested * 0.15, 2)
+    
+    total = round(base + service_fee + insurance, 2)
+    return total, base, service_fee, insurance
 
 
 @router.post("/", response_model=ReservationPublic, status_code=status.HTTP_201_CREATED)
@@ -32,13 +44,55 @@ async def create_reservation(
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
 
+    if listing.get("hostId") == current_user["_id"]:
+        raise HTTPException(status_code=400, detail="You cannot rent your own listing")
+
     start_dt = datetime.combine(payload.startDate, datetime.min.time())
     end_dt = datetime.combine(payload.endDate, datetime.min.time())
     if end_dt <= start_dt:
         raise HTTPException(status_code=400, detail="End date must be after start date")
 
-    total, base, service_fee, deposit = _calculate_costs(
-        listing["pricePerMonth"], start_dt, end_dt
+    available_from = listing.get("availableFrom")
+    available_to = listing.get("availableTo")
+    if available_from and start_dt < datetime.combine(available_from, datetime.min.time()) if isinstance(available_from, date) else start_dt < available_from:
+        raise HTTPException(status_code=400, detail=f"This space is not available until {available_from}")
+    if available_to and end_dt > datetime.combine(available_to, datetime.min.time()) if isinstance(available_to, date) else end_dt > available_to:
+        raise HTTPException(status_code=400, detail=f"This space is only available until {available_to}")
+
+    booking_deadline = listing.get("bookingDeadline")
+    if booking_deadline:
+        deadline_dt = datetime.combine(booking_deadline, datetime.min.time()) if isinstance(booking_deadline, date) else booking_deadline
+        if datetime.utcnow() > deadline_dt:
+            raise HTTPException(status_code=400, detail=f"Booking deadline has passed ({booking_deadline}). No new reservations accepted.")
+
+    total_sqft = listing.get("sizeSqft", 100)
+    sqft_requested = payload.sqftRequested
+    
+    if sqft_requested <= 0:
+        raise HTTPException(status_code=400, detail="Must request at least 1 sqft")
+    if sqft_requested > total_sqft:
+        raise HTTPException(status_code=400, detail=f"Cannot request more than {total_sqft} sqft available")
+    
+    overlapping_reservations = await db.reservations.find({
+        "listingId": payload.listingId,
+        "status": {"$in": ["confirmed", "pending_host_confirmation"]},
+        "$and": [
+            {"startDate": {"$lt": end_dt}},
+            {"endDate": {"$gt": start_dt}}
+        ]
+    }).to_list(length=500)
+    
+    reserved_sqft = sum(r.get("sqftRequested", 0) for r in overlapping_reservations)
+    available_sqft = total_sqft - reserved_sqft
+    
+    if sqft_requested > available_sqft:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Only {available_sqft} sqft available for these dates. {reserved_sqft} sqft already reserved."
+        )
+
+    total, base, service_fee, insurance = _calculate_costs(
+        listing["pricePerMonth"], total_sqft, sqft_requested, start_dt, end_dt, payload.addInsurance
     )
 
     reservation_id = str(uuid4())
@@ -47,13 +101,13 @@ async def create_reservation(
         "_id": reservation_id,
         "listingId": payload.listingId,
         "renterId": current_user["_id"],
-        # Store as datetimes to satisfy MongoDB encoding
         "startDate": start_dt,
         "endDate": end_dt,
+        "sqftRequested": sqft_requested,
         "status": ReservationStatus.pending,
         "basePrice": base,
         "serviceFee": service_fee,
-        "deposit": deposit,
+        "insurance": insurance,
         "totalPrice": total,
         "holdExpiresAt": now + timedelta(hours=24),
         "createdAt": now,
@@ -145,4 +199,3 @@ async def delete_reservation(
 
     await db.reservations.delete_one({"_id": reservation_id})
     return None
-

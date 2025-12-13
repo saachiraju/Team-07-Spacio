@@ -23,8 +23,6 @@ class MatchResponse(BaseModel):
 
 @router.post("/recommend", response_model=MatchResponse)
 async def recommend(payload: MatchRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
-    # fetch listings
     rows = await db.listings.find({}).to_list(length=500)
     top, explanation = match_listings(rows, payload.query, payload.zipCode)
     return MatchResponse(listings=[ListingPublic(**l) for l in top], explanation=explanation)
-

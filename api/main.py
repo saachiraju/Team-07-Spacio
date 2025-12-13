@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.core.config import settings
-from app.routers import auth, listings, reservations, messages, pricing, matching
+from app.routers import auth, listings, reservations, messages, pricing, matching, verification
 
 app = FastAPI(
     title="Spacio API",
@@ -32,8 +32,10 @@ app.include_router(reservations.router, prefix="/reservations", tags=["reservati
 app.include_router(messages.router, prefix="/messages", tags=["messages"])
 app.include_router(pricing.router, prefix="/pricing", tags=["pricing"])
 app.include_router(matching.router, prefix="/matching", tags=["matching"])
+app.include_router(verification.router, prefix="/verification", tags=["verification"])
 
-# Serve uploaded images
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+os.makedirs("images", exist_ok=True)
+app.mount("/images", StaticFiles(directory="images"), name="images")

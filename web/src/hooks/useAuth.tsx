@@ -24,6 +24,7 @@ type AuthContextValue = {
     backgroundCheckAccepted?: boolean;
   }) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   loading: boolean;
   error: string | null;
 };
@@ -109,9 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
   }, [queryClient]);
 
+  const refreshUser = useCallback(async () => {
+    await fetchMe();
+  }, [fetchMe]);
+
   const value = useMemo(
-    () => ({ user, token, login, register, logout, loading, error }),
-    [user, token, login, register, logout, loading, error]
+    () => ({ user, token, login, register, logout, refreshUser, loading, error }),
+    [user, token, login, register, logout, refreshUser, loading, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

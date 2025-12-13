@@ -24,11 +24,9 @@ def _estimate_sqft_from_query(query: str) -> float:
     for word, sqft in KEYWORD_SIZE_HINTS.items():
         if word in q:
             estimate = max(estimate, sqft)
-    # crude numeric extraction
     nums = re.findall(r"\d+", q)
     if nums:
         count = max(int(n) for n in nums)
-        # assume each item needs ~8 sqft as a base
         estimate = max(estimate, min(200, count * 8))
     return estimate
 
@@ -61,7 +59,7 @@ def score_listing(
 
     price = listing.get("pricePerMonth") or 0
     if price > 0:
-        score += 50 / price  # favor lower prices gently
+        score += 50 / price
 
     return score
 
@@ -87,4 +85,3 @@ def match_listings(
         f" that fit your needs for {', '.join(keywords) if keywords else 'your described items'}."
     )
     return top, explanation
-

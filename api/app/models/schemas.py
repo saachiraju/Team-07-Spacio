@@ -57,17 +57,25 @@ class ListingBase(BaseModel):
     zipCode: str
     images: List[str] = []
     availability: bool = True
-    rating: Optional[float] = None
+        availableFrom: Optional[date] = None
+    availableTo: Optional[date] = None
+    bookingDeadline: Optional[date] = None
+    rating: Optional[float] = None  
 
 
 class ListingCreate(ListingBase):
     sizeSqft: float
+    availableFrom: date
+    availableTo: date
 
 
 class ListingPublic(ListingBase):
     id: str = Field(alias="_id")
     hostId: str
     createdAt: datetime
+    availableFrom: Optional[datetime] = None
+    availableTo: Optional[datetime] = None
+    bookingDeadline: Optional[datetime] = None
 
     class Config:
         populate_by_name = True
@@ -82,6 +90,9 @@ class ListingUpdate(BaseModel):
     zipCode: Optional[str] = None
     images: Optional[List[str]] = None
     availability: Optional[bool] = None
+    availableFrom: Optional[date] = None
+    availableTo: Optional[date] = None
+    bookingDeadline: Optional[date] = None
     rating: Optional[float] = None
 
 
@@ -89,6 +100,8 @@ class ReservationCreate(BaseModel):
     listingId: str
     startDate: date
     endDate: date
+    sqftRequested: float
+    addInsurance: bool = False
 
 
 class ReservationPublic(BaseModel):
@@ -97,10 +110,11 @@ class ReservationPublic(BaseModel):
     renterId: str
     startDate: date
     endDate: date
+    sqftRequested: float = 0
     status: ReservationStatus
     totalPrice: float
     serviceFee: float
-    deposit: float
+    insurance: float = 0
     holdExpiresAt: datetime
     createdAt: datetime
 
@@ -122,4 +136,3 @@ class MessagePublic(BaseModel):
 
     class Config:
         populate_by_name = True
-

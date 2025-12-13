@@ -3,6 +3,8 @@ import type { Listing, StorageSize } from "../types";
 
 export async function fetchListings(params: {
   zipCode?: string;
+  startDate?: string;
+  endDate?: string;
   priceMin?: number;
   priceMax?: number;
   size?: StorageSize;
@@ -20,9 +22,13 @@ export async function createListing(payload: {
   title: string;
   description: string;
   size: StorageSize;
+  sizeSqft: number;
   pricePerMonth: number;
   addressSummary: string;
   zipCode: string;
+  availableFrom: string;
+  availableTo: string;
+  bookingDeadline?: string | null;
   images: string[];
 }) {
   const { data } = await api.post<Listing>("/listings", payload);

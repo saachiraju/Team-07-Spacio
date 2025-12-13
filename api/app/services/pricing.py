@@ -16,7 +16,6 @@ def suggest_price(
     base = BasePrices.get(size, 100.0)
     factors = []
 
-    # Demand adjustment
     demand_factor = 1.0
     if zip_code in HighDemandZips:
         demand_factor = 1.1
@@ -25,18 +24,15 @@ def suggest_price(
         demand_factor = 0.9
         factors.append("−10% low-demand adjustment")
 
-    # Indoor premium
     indoor_premium = 15.0 if indoor else 0.0
     if indoor:
         factors.append("+$15 indoor premium")
 
     deterministic = base * demand_factor + indoor_premium
 
-    # Light randomness ±5% for friendlier, non-identical suggestions
     jitter = random.uniform(0.95, 1.05)
     suggested = round(deterministic * jitter, 2)
 
-    # Keep min/max centered on deterministic baseline to avoid drift
     min_price = round(deterministic * 0.9, 2)
     max_price = round(deterministic * 1.2, 2)
 
@@ -46,4 +42,3 @@ def suggest_price(
         f"Base ${base} {factor_text}. A slight variation is applied so suggestions feel more human."
     )
     return suggested, min_price, max_price, explanation
-

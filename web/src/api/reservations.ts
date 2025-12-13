@@ -5,6 +5,8 @@ export async function createReservation(payload: {
   listingId: string;
   startDate: string;
   endDate: string;
+  sqftRequested: number;
+  addInsurance?: boolean;
 }) {
   const { data } = await api.post<Reservation>("/reservations", payload);
   return data;

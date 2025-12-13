@@ -22,10 +22,12 @@ async def create_listing(
 ):
     if not current_user.get("isHost"):
         raise HTTPException(status_code=403, detail="Only hosts can create listings")
+    
+    if current_user.get("verificationStatus") != "verified":
+        raise HTTPException(status_code=403, detail="You must verify your identity before creating listings")
 
     listing_id = str(uuid4())
     now = datetime.utcnow()
-    # Derive size bucket from sqft
     size_bucket = payload.size
     if payload.sizeSqft:
         if payload.sizeSqft <= 60:
@@ -35,21 +37,31 @@ async def create_listing(
         else:
             size_bucket = StorageSize.large
 
+    payload_dict = payload.model_dump()
+    if payload_dict.get("availableFrom"):
+        payload_dict["availableFrom"] = datetime.combine(payload_dict["availableFrom"], datetime.min.time())
+    if payload_dict.get("availableTo"):
+        payload_dict["availableTo"] = datetime.combine(payload_dict["availableTo"], datetime.min.time())
+    if payload_dict.get("bookingDeadline"):
+        payload_dict["bookingDeadline"] = datetime.combine(payload_dict["bookingDeadline"], datetime.min.time())
+
     doc = {
         "_id": listing_id,
         "hostId": current_user["_id"],
-        **payload.model_dump(),
+        **payload_dict,
         "size": size_bucket,
-        "rating": payload.rating or 4.7,  # fake rating placeholder
+        "rating": payload_dict.get("rating") or 4.7,
         "createdAt": now,
     }
     await db.listings.insert_one(doc)
     return ListingPublic(**doc)
 
 
-@router.get("/", response_model=List[ListingPublic])
+@router.get("/")
 async def list_listings(
     zipCode: Optional[str] = None,
+    startDate: Optional[str] = None,
+    endDate: Optional[str] = None,
     priceMin: Optional[float] = Query(default=None, ge=0),
     priceMax: Optional[float] = Query(default=None, ge=0),
     size: Optional[StorageSize] = None,
@@ -57,7 +69,7 @@ async def list_listings(
 ):
     filters: dict = {}
     if zipCode:
-        filters["zipCode"] = zipCode
+        filters["zipCode"] = {"$regex": f"^{zipCode}", "$options": "i"}
     if size:
         filters["size"] = size
     if priceMin is not None or priceMax is not None:
@@ -71,6 +83,83 @@ async def list_listings(
     cursor = db.listings.find(filters)
     listings = await cursor.to_list(length=100)
 
+    if startDate and endDate:
+        from datetime import datetime as dt
+        search_start = dt.fromisoformat(startDate)
+        search_end = dt.fromisoformat(endDate)
+        
+        def is_within_availability(listing):
+            available_from = listing.get("availableFrom")
+            available_to = listing.get("availableTo")
+            
+            if not available_from and not available_to:
+                return True
+            
+            if available_from:
+                if hasattr(available_from, 'date'):
+                    pass
+                else:
+                    available_from = dt.combine(available_from, dt.min.time())
+            
+            if available_to:
+                if hasattr(available_to, 'date'):
+                    pass
+                else:
+                    available_to = dt.combine(available_to, dt.min.time())
+            
+            if available_from and search_start < available_from:
+                return False
+            if available_to and search_end > available_to:
+                return False
+            
+            return True
+        
+        listings = [l for l in listings if is_within_availability(l)]
+        
+        overlapping_reservations = await db.reservations.find({
+            "status": {"$in": ["confirmed", "pending_host_confirmation"]},
+            "$and": [
+                {"startDate": {"$lt": search_end}},
+                {"endDate": {"$gt": search_start}}
+            ]
+        }).to_list(length=500)
+        
+        reserved_listing_ids = set(r["listingId"] for r in overlapping_reservations)
+        
+        listings = [l for l in listings if l["_id"] not in reserved_listing_ids]
+
+    host_ids = list(set(l.get("hostId") for l in listings if l.get("hostId")))
+    hosts = {}
+    if host_ids:
+        host_cursor = db.users.find({"_id": {"$in": host_ids}})
+        host_list = await host_cursor.to_list(length=100)
+        hosts = {h["_id"]: h for h in host_list}
+
+    listing_ids = [l["_id"] for l in listings]
+    from datetime import datetime as dt
+    now = dt.utcnow()
+    
+    active_reservations = await db.reservations.find({
+        "listingId": {"$in": listing_ids},
+        "status": {"$in": ["confirmed", "pending_host_confirmation"]},
+        "endDate": {"$gt": now}
+    }).to_list(length=1000)
+    
+    reserved_by_listing = {}
+    for r in active_reservations:
+        lid = r["listingId"]
+        if lid not in reserved_by_listing:
+            reserved_by_listing[lid] = 0
+        reserved_by_listing[lid] += r.get("sqftRequested", 0)
+
+    for listing in listings:
+        host = hosts.get(listing.get("hostId"), {})
+        listing["hostVerified"] = host.get("verificationStatus") == "verified"
+        
+        total_sqft = listing.get("sizeSqft", 100)
+        reserved_sqft = reserved_by_listing.get(listing["_id"], 0)
+        listing["availableSqft"] = max(0, total_sqft - reserved_sqft)
+
     if zipCode:
         listings.sort(
             key=lambda l: (
@@ -78,7 +167,7 @@ async def list_listings(
                 -(l.get("rating") or 0),
             )
         )
-    return [ListingPublic(**l) for l in listings]
+    return listings
 
 
 @router.get("/mine", response_model=List[ListingPublic])
@@ -167,4 +256,3 @@ async def upload_image(
         shutil.copyfileobj(file.file, buffer)
 
     return {"url": f"/uploads/{filename}"}
-
